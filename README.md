@@ -8,6 +8,7 @@ Original English-language fictional crime-thriller videos: **14-minute narrated 
 
 | # | Guide | Covers |
 |---|---|---|
+| 00 | [AI workflow diagram](guides/00-ai-workflow-diagram.md) | **Start here:** the whole process and which AI does each step |
 | 01 | [Channel strategy](guides/01-channel-strategy.md) | Format decisions, U.S. audience, brand |
 | 02 | [Characters](guides/02-characters.md) | Character creation, consistency, cast size |
 | 03 | [Story and script](guides/03-story-and-script.md) | 14-min structure, word budget, script QC |
