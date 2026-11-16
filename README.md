@@ -51,6 +51,10 @@ Original English-language fictional crime-thriller videos: **14-minute narrated 
 - [Episode scorecard](templates/episode-scorecard.md)
 - [Used premises log](templates/used-premises.md)
 
+## Worked example
+
+- [video_1 — EP001 "The Clock That Stopped at 9:14"](video_1/README.md): a complete episode with every prompt filled in, the final script, 66 shot prompts, voice, music, edit plan, packaging, and Shorts.
+
 ## Order of work
 
 1. Guides 01–02 once: set up the channel and lock the characters.
