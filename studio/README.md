@@ -6,12 +6,24 @@ Built with Next.js 16 (App Router, Server Actions), MongoDB (Mongoose), and Tail
 
 ## How it works
 
-- **10 stages, 16 files, in order.** Each file (for example `01-story/01-idea.md`) unlocks when the one before it is marked complete. Files can start empty.
-- **Create with AI on every file.** The studio builds the prompt for you from the matching template in `prompts/`, every earlier file it needs (the outline gets the idea, the shot list gets the script, the bible and the locations), and a structure example from EP001.
-  - **With an API connected:** click **Generate**. The answer streams in and drops into the editor. Review it, then **Mark complete & continue**.
-  - **Without one:** click **Copy prompt**, paste it into Claude, ChatGPT or Gemini, then paste the answer back into the editor.
+Each episode is made in **9 modules**, idea to finished video:
+
+| # | Module | Documents (AI-written, you approve) | Media you make in the module |
+|---|---|---|---|
+| 1 | Idea | `01-idea.md` — type your idea, the AI develops it | — |
+| 2 | Script | outline → draft + editor pass → locked script | — |
+| 3 | Voice | voice setup (voice design, pronunciation, delivery tags) | narration mp3 per script section (generate or upload) |
+| 4 | Cast & world | character bible, character + location image prompts | locked face and location images |
+| 5 | Shots | shot list, one image prompt per shot | one image per shot (references attached) |
+| 6 | Motion | image-to-video prompts for 🎬 shots | animated clips (upload) |
+| 7 | Music & SFX | cue sheet (with AI music prompts) | music bed (upload) |
+| 8 | Edit & render | edit plan | **the final MP4 + captions**, rendered in the studio with ffmpeg |
+| 9 | Publish | title/description/thumbnail, Shorts, license log | thumbnail image, release checklist |
+
+- **Every document has a ready AI prompt** built from your prompt templates and the documents before it. Each step has its own input ("Your idea", "Voice you want", …). Files unlock in order; a module counts as done when its documents *and* its media are done.
 - **AI connections** (`/settings/ai`): add keys for Anthropic, OpenAI, Gemini, OpenRouter, Ollama (local) and ElevenLabs, then choose which provider does **Script & text**, **Images** and **Voice**. Keys stay on the server (MongoDB or `.env.local`).
 - **Library** (sidebar): reusable **Characters**, **Stories** and **Locations**, plus an **Asset gallery**. Fill an item's details from a short brief with AI, then make its images in the **Image studio**: write a prompt, optionally **Enhance with AI** (your text AI rewrites it using the item's details), then **Generate** with your image AI or **Upload** your own. One image is the item's main image. When you create an episode, pick its story, cast and locations: they go into every AI prompt for that episode, and a library character's main image is used as the face reference for shots (or copied in with **Use library face** on the Cast tab). Library images are saved in `library/assets/` (git-ignored).
+- **Render**: Edit & render assembles the video on your computer (bundled ffmpeg, no install): narration sets the timing, each shot gets an equal share of its section, stills get the slow camera move from the shot list (IN, OUT, L→R…), 🎬 shots use their clip, missing shots show a placeholder card, and the music bed is ducked under the voice. Output: `video_N/export/EPxxx_final.mp4` plus an approximate `.srt`. 720p draft or 1080p final.
 - **Media**: once the prompt files are complete, **Cast & locations** and the **Shot board** get a *Generate image* button (OpenAI or Gemini, with locked reference images attached for consistent faces), and **Voice** generates narration per script section (OpenAI TTS or ElevenLabs). Video clips and music are still copy & paste: the studio writes those prompts, and you upload the results.
 
 ## Run it

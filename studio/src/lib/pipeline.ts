@@ -31,11 +31,17 @@ export type PipelineFile = {
   seriesBible?: boolean;
   /** Which connected AI writes this file (always text) and which AI makes the media afterwards. */
   writer: "text" | "you";
+  /** Label and placeholder for the creator's input in the AI panel. */
+  ask?: { label: string; placeholder: string };
   media?: { kind: TaskKind; label: string; href: string };
 };
 
+export type MediaPanel = "voice" | "cast" | "shots" | "motion" | "music" | "render" | "publish";
+
+/** A production module: its documents, then the media work (panel) that uses them. */
 export type PipelineStage = {
-  key: string; // "01-story"
+  key: string; // "voice" — URL: /episodes/EP001/m/voice
+  panel?: MediaPanel;
   number: number;
   title: string;
   description: string;
@@ -50,30 +56,40 @@ const f = (
 
 export const PIPELINE: PipelineStage[] = [
   {
-    key: "01-story",
+    key: "idea",
     number: 1,
-    title: "Story",
-    description: "Premise, outline, draft and the locked narration script.",
+    title: "Idea",
+    description: "Start from a sentence. The AI turns it into a strong premise.",
     files: [
       f("01-story", "01-idea", {
         title: "Idea",
         summary: "Generate premises and choose one",
         seriesBible: true,
         writer: "text",
+        ask: { label: "Your idea", placeholder: "A sentence or two is enough: who, where, the crime, the twist. Leave it empty and the AI generates 20 premises to choose from." },
         templates: ["prompts/script/01-idea-generator.md"],
         context: [],
         repoContext: ["templates/used-premises.md"],
-        task: "Generate 20 original story premises for this episode, then choose the strongest one and explain why. If the episode already has a working title, logline or story shape (see Episode above), build the premises around it and make it the chosen one if it works.",
+        task: "If the creator gave an idea (see \"Extra instructions from the creator\") or picked a library story, develop THAT into the chosen premise: sharpen the hook, the crime, the twist and the stakes, and list 5 alternative angles on it. Otherwise generate 20 original premises and choose the strongest. If the episode already has a working title, logline or story shape (see Episode above), build around it.",
         format: `Markdown with:
 - "# Step 1 — Idea"
 - "## Premises" — a table: | # | Title | Shape | Setting | Crime | Twist | Why viewers care |
 - "## Chosen: #N — <Title>" with a **Why:** paragraph, and the chosen premise written out in full (setting, era, crime, twist, emotional stakes).`,
       }),
+    ],
+  },
+  {
+    key: "script",
+    number: 2,
+    title: "Script",
+    description: "Outline, draft and editor pass, then the locked narration script.",
+    files: [
       f("01-story", "02-outline", {
         title: "Outline",
         summary: "Beats, clue map and the real timeline",
         seriesBible: true,
         writer: "text",
+        ask: { label: "Notes for the outline", placeholder: "e.g. Make the deputy a suspect for a while. Keep it to 6 named characters." },
         templates: ["prompts/script/02-outline.md"],
         context: ["01-story/01-idea.md"],
         task: "Build the beat-by-beat outline for the chosen premise.",
@@ -89,6 +105,7 @@ export const PIPELINE: PipelineStage[] = [
         summary: "Write the draft, then review it like an editor",
         seriesBible: true,
         writer: "text",
+        ask: { label: "Notes for the draft", placeholder: "e.g. More dialogue in the climax. A colder narrator voice." },
         templates: ["prompts/script/03-script-writer.md", "prompts/script/04-editor-pass.md"],
         context: ["01-story/01-idea.md", "01-story/02-outline.md"],
         task: "Do steps 3 and 4 in one pass: write the full draft narration script following the outline, then act as the script editor and review it.",
@@ -101,6 +118,7 @@ export const PIPELINE: PipelineStage[] = [
         title: "Final script",
         summary: "The locked script — read it aloud before you lock it",
         writer: "text",
+        ask: { label: "Notes for the final script", placeholder: "e.g. Cut 200 words from the investigation. Stronger last line." },
         templates: [],
         context: ["01-story/02-outline.md", "01-story/03-script-prompts.md"],
         task: "Apply every editor note to the draft and return the final, locked narration script. 2,000–2,300 narrated words. Mark each new image with [SHOT 01], [SHOT 02] … (about one shot every 10–15 seconds of narration).",
@@ -113,16 +131,43 @@ export const PIPELINE: PipelineStage[] = [
     ],
   },
   {
-    key: "02-characters",
-    number: 2,
-    title: "Characters",
-    description: "Lock every character's look before making any shot.",
+    key: "voice",
+    number: 3,
+    title: "Voice",
+    description: "Design the narrator voice and record the narration, section by section.",
+    panel: "voice",
+    files: [
+      f("05-voice", "voice-setup", {
+        title: "Voice setup",
+        summary: "Narrator voice design, delivery tags and pronunciation",
+        writer: "text",
+        ask: { label: "Voice you want", placeholder: "e.g. Deep, gravelly male narrator, slow and calm, slight Southern accent." },
+        templates: ["prompts/voice-sample.md", "prompts/narration-direction.md"],
+        context: ["01-story/script-final.md", "01-story/02-outline.md"],
+        task: "Design the narrator voice and prepare the narration for recording.",
+        format: `Markdown with:
+- "## Voice description" — a \`\`\`text block for a voice-design tool
+- "## Test lines" — a \`\`\`text block
+- "## Pronunciation" — table | Name | Say it |
+- "## Recording plan" — one row per script section: | File | Section | Words | Notes |  (files named vo_01_hook.mp3 …)
+- "## Delivery-tagged script" — the final script with [pause 1s], [slower], [low] tags added WITHOUT changing any words.`,
+        media: { kind: "voice", label: "Generate narration", href: "voice" },
+      }),
+    ],
+  },
+  {
+    key: "cast",
+    number: 4,
+    title: "Cast & world",
+    description: "Lock every face and location before making shots.",
+    panel: "cast",
     files: [
       f("02-characters", "character-bible", {
         title: "Character bible",
         summary: "Fixed look, voice and pronunciation for every character",
         seriesBible: true,
         writer: "text",
+        ask: { label: "Notes on the characters", placeholder: "e.g. Make the culprit look kind and harmless. Give the deputy glasses." },
         templates: [],
         context: ["01-story/02-outline.md", "01-story/script-final.md"],
         repoContext: ["templates/character-bible.md"],
@@ -144,6 +189,7 @@ Then "## Style line" — one sentence appended to every image prompt (film look,
         title: "Character image prompts",
         summary: "Portrait + reference-sheet prompts that lock each face",
         writer: "text",
+        ask: { label: "Look & style notes", placeholder: "e.g. Painterly noir style, close-ups, rim light." },
         templates: ["prompts/character-reference-sheet.md"],
         context: ["02-characters/character-bible.md"],
         task: "Write the image prompts that create each character's locked reference face, then a reference sheet that uses it.",
@@ -154,18 +200,11 @@ then "**Reference sheet (attach <firstname>_front.png)**" followed by a \`\`\`te
 Use the exact bible description in every prompt and end each with the style line. Separate characters with "---".`,
         media: { kind: "image", label: "Generate & approve faces", href: "cast" },
       }),
-    ],
-  },
-  {
-    key: "03-locations",
-    number: 3,
-    title: "Locations",
-    description: "One approved reference image per recurring place.",
-    files: [
       f("03-locations", "location-prompts", {
         title: "Location prompts",
         summary: "Establishing reference for every location",
         writer: "text",
+        ask: { label: "Notes on the locations", placeholder: "e.g. Everything wet from rain, neon reflections." },
         templates: ["prompts/location-reference.md"],
         context: ["01-story/script-final.md", "02-characters/character-bible.md"],
         task: "List every recurring location in the script, give each an ID (L1, L2 …) and write one establishing reference image prompt per location (no people).",
@@ -178,15 +217,17 @@ Use the exact bible description in every prompt and end each with the style line
     ],
   },
   {
-    key: "04-shots",
-    number: 4,
+    key: "shots",
+    number: 5,
     title: "Shots",
-    description: "Shot list, one image prompt per shot, and video prompts for key shots.",
+    description: "One still image per shot, made from the locked references.",
+    panel: "shots",
     files: [
       f("04-shots", "shot-list", {
         title: "Shot list",
         summary: "Every [SHOT NN] in the script, with location and motion",
         writer: "text",
+        ask: { label: "Notes for the shot list", placeholder: "e.g. Animate the 8 most dramatic moments. More close-ups on clues." },
         templates: ["prompts/script/05-visual-notes.md"],
         context: ["01-story/script-final.md", "02-characters/character-bible.md", "03-locations/location-prompts.md"],
         task: "Turn every [SHOT NN] marker in the final script into one shot-list row. Mark about 10 key shots with 🎬 to be animated with image-to-video; all others are stills with a slow camera move.",
@@ -202,6 +243,7 @@ Optionally, a second 2-column table "| Shot | Text overlay |" for titles or on-s
         title: "Image prompts",
         summary: "One still-image prompt per shot, with the refs to attach",
         writer: "text",
+        ask: { label: "Notes for the image prompts", placeholder: "e.g. Low camera angles, heavier shadows." },
         templates: ["prompts/video-shot.md"],
         context: ["04-shots/shot-list.md", "02-characters/character-bible.md", "03-locations/location-prompts.md"],
         task: "Write one image prompt for every shot in the shot list. Copy character descriptions exactly from the bible; end every prompt with the style line. Never put readable text in the image.",
@@ -213,10 +255,20 @@ Optionally, a second 2-column table "| Shot | Text overlay |" for titles or on-s
 Refs are <firstname>_front for characters in the shot and the location ID. Use "Refs: —" if none.`,
         media: { kind: "image", label: "Generate & approve shots", href: "shots" },
       }),
+    ],
+  },
+  {
+    key: "motion",
+    number: 6,
+    title: "Motion",
+    description: "Animate the key shots with image-to-video.",
+    panel: "motion",
+    files: [
       f("04-shots", "video-prompts", {
         title: "Video prompts",
         summary: "Image-to-video prompts for the 🎬 shots",
         writer: "text",
+        ask: { label: "Notes for the motion", placeholder: "e.g. Only slow push-ins; no character movement." },
         templates: ["prompts/video-shot.md"],
         context: ["04-shots/shot-list.md", "04-shots/image-prompts.md"],
         task: "Write a 5-second image-to-video prompt for every 🎬 shot in the shot list. Small, slow motion only — big movement makes faces drift.",
@@ -230,38 +282,17 @@ Refs are <firstname>_front for characters in the shot and the location ID. Use "
     ],
   },
   {
-    key: "05-voice",
-    number: 5,
-    title: "Voice",
-    description: "Design the narrator voice and record the narration.",
-    files: [
-      f("05-voice", "voice-setup", {
-        title: "Voice setup",
-        summary: "Narrator voice design, delivery tags and pronunciation",
-        writer: "text",
-        templates: ["prompts/voice-sample.md", "prompts/narration-direction.md"],
-        context: ["02-characters/character-bible.md", "01-story/script-final.md"],
-        task: "Design the narrator voice and prepare the narration for recording.",
-        format: `Markdown with:
-- "## Voice description" — a \`\`\`text block for a voice-design tool
-- "## Test lines" — a \`\`\`text block
-- "## Pronunciation" — table | Name | Say it |
-- "## Recording plan" — one row per script section: | File | Section | Words | Notes |  (files named vo_01_hook.mp3 …)
-- "## Delivery-tagged script" — the final script with [pause 1s], [slower], [low] tags added WITHOUT changing any words.`,
-        media: { kind: "voice", label: "Generate narration", href: "voice" },
-      }),
-    ],
-  },
-  {
-    key: "06-music-sfx",
-    number: 6,
+    key: "music",
+    number: 7,
     title: "Music & SFX",
-    description: "Pick the music beds and sound effects, cue by cue.",
+    description: "Music bed and sound effects under the narration.",
+    panel: "music",
     files: [
       f("06-music-sfx", "cue-sheet", {
         title: "Cue sheet",
         summary: "Music and sound effects per section",
         writer: "text",
+        ask: { label: "Music direction", placeholder: "e.g. Sparse piano and low strings, a heartbeat pulse in the climax." },
         templates: [],
         context: ["01-story/script-final.md", "04-shots/shot-list.md"],
         task: "Write the music and sound-effect cue sheet for the episode. Music must come from a licensed library or an AI music tool that allows commercial use; describe each cue so it can be searched for or generated.",
@@ -273,15 +304,17 @@ Refs are <firstname>_front for characters in the shot and the location ID. Use "
     ],
   },
   {
-    key: "07-edit",
-    number: 7,
-    title: "Edit",
-    description: "Assemble voice, shots, music and captions.",
+    key: "render",
+    number: 8,
+    title: "Edit & render",
+    description: "Assemble voice, shots, clips and music into the final video.",
+    panel: "render",
     files: [
       f("07-edit", "edit-plan", {
         title: "Edit plan",
         summary: "Timeline, motion, transitions and captions",
         writer: "text",
+        ask: { label: "Notes for the edit", placeholder: "e.g. Hard cut to black before the reveal. Burned-in captions." },
         templates: [],
         context: ["04-shots/shot-list.md", "05-voice/voice-setup.md", "06-music-sfx/cue-sheet.md"],
         task: "Write a step-by-step edit plan for CapCut or DaVinci Resolve.",
@@ -295,15 +328,17 @@ Refs are <firstname>_front for characters in the shot and the location ID. Use "
     ],
   },
   {
-    key: "08-packaging",
-    number: 8,
-    title: "Packaging",
-    description: "Title, description, thumbnail and pinned comment.",
+    key: "publish",
+    number: 9,
+    title: "Publish",
+    description: "Thumbnail, title, description, Shorts and the license log.",
+    panel: "publish",
     files: [
       f("08-packaging", "title-description-thumbnail", {
         title: "Title, description, thumbnail",
         summary: "Everything viewers see before they click",
         writer: "text",
+        ask: { label: "Notes for packaging", placeholder: "e.g. Put the stopped watch on the thumbnail." },
         templates: ["prompts/title-and-description.md", "prompts/thumbnail.md"],
         context: ["01-story/script-final.md", "02-characters/character-bible.md", "03-locations/location-prompts.md"],
         task: "Write the YouTube packaging and the thumbnail image prompt.",
@@ -314,35 +349,21 @@ Refs are <firstname>_front for characters in the shot and the location ID. Use "
 - "## Pinned comment"
 - "## Tags" — one comma-separated line.`,
       }),
-    ],
-  },
-  {
-    key: "09-shorts",
-    number: 9,
-    title: "Shorts",
-    description: "Three vertical Shorts that send viewers to the episode.",
-    files: [
       f("09-shorts", "shorts-scripts", {
         title: "Shorts scripts",
         summary: "Teaser, clue and character Shorts",
         writer: "text",
+        ask: { label: "Notes for the Shorts", placeholder: "e.g. Make one Short about the red herring." },
         templates: ["prompts/script/06-shorts.md"],
         context: ["01-story/script-final.md", "04-shots/shot-list.md"],
         task: "Write the 3 Shorts scripts. Reuse existing shot numbers where possible (crop to 9:16) so no new images are needed.",
         format: `Markdown with one "## Short N — <Type>: <title>" section each, containing: **Hook text**, **Shots used**, the narration in a \`\`\`text block, and **Closing line**.`,
       }),
-    ],
-  },
-  {
-    key: "10-rights",
-    number: 10,
-    title: "Rights & publish",
-    description: "Record every tool and license, then publish.",
-    files: [
       f("10-rights", "license-log", {
         title: "License log",
         summary: "Every AI tool, plan and license used",
         writer: "text",
+        ask: { label: "Tools you used", placeholder: "e.g. Claude Pro, Midjourney Standard, ElevenLabs Creator, Epidemic Sound." },
         templates: [],
         context: ["05-voice/voice-setup.md", "06-music-sfx/cue-sheet.md"],
         task: "Draft the license log for this episode. Pre-fill rows for every tool used (script AI, image AI, video AI, voice AI, music, SFX, fonts) and leave plan, licence and date cells for the creator to confirm. Add a short pre-publish checklist (AI-content disclosure, fiction disclaimer, music credits).",
@@ -358,8 +379,13 @@ export const ALL_FILES: { stage: PipelineStage; file: PipelineFile; index: numbe
   (stage) => stage.files.map((file) => ({ stage, file })),
 ).map((x, index) => ({ ...x, index }));
 
-export function findFile(stageKey: string, slug: string) {
-  return ALL_FILES.find((x) => x.stage.key === stageKey && x.file.slug === slug) ?? null;
+/** Find a file by its folder and slug, e.g. ("05-voice", "voice-setup"). */
+export function findFile(folder: string, slug: string) {
+  return ALL_FILES.find((x) => x.file.path === `${folder}/${slug}.md`) ?? null;
+}
+
+export function moduleUrl(code: string, key: string) {
+  return `/episodes/${code}/m/${key}`;
 }
 
 export function stepUrl(code: string, file: PipelineFile) {

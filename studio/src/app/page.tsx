@@ -94,7 +94,7 @@ async function Overview() {
                 <thead className="bg-panel-2/60 text-left text-xs uppercase tracking-wider text-muted">
                   <tr>
                     <th className="px-5 py-2.5 font-medium">Episode</th>
-                    <th className="px-3 py-2.5 font-medium">Stages</th>
+                    <th className="px-3 py-2.5 font-medium">Modules</th>
                     <th className="px-3 py-2.5 font-medium">Shots</th>
                     <th className="px-3 py-2.5 font-medium">Next step</th>
                     <th className="px-5 py-2.5" />
@@ -138,7 +138,7 @@ async function Overview() {
                           {w.current ? (
                             <div>
                               <div className="text-xs text-muted">
-                                Stage {w.stages.find((s) => s.key === w.current!.stageKey)?.number} ·{" "}
+                                Module {w.stages.find((s) => s.key === w.current!.stageKey)?.number} ·{" "}
                                 {w.stages.find((s) => s.key === w.current!.stageKey)?.title}
                               </div>
                               <div className="font-medium">{w.current.title}</div>
@@ -198,7 +198,7 @@ async function Overview() {
           </Card>
 
           <Card className="p-5">
-            <h2 className="mb-3 font-semibold">The 10 stages</h2>
+            <h2 className="mb-3 font-semibold">Idea to video in 9 modules</h2>
             <ol className="space-y-2 text-sm">
               {PIPELINE.map((s) => (
                 <li key={s.key} className="flex gap-3">

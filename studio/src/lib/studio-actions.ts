@@ -15,8 +15,9 @@ import {
 import { connectDB } from "./db";
 import { importEpisodeFolder } from "./importer";
 import { Character, Episode, LibraryItem, Location, Shot } from "./models";
-import { ALL_FILES, findFile, stepUrl } from "./pipeline";
+import { ALL_FILES, findFile, moduleUrl, stepUrl } from "./pipeline";
 import { REPO_ROOT } from "./paths";
+import { cancelRender, startRender } from "./render";
 import { splitScript } from "./voice-sections";
 import { readEpisodeFile, writeEpisodeFile } from "./workspace";
 
@@ -73,6 +74,10 @@ export async function completeStepFile(
     // Import problems show up on the shot board; never block completing a file.
   }
   refresh();
+  // Last document of a module that has media work (voice, images, render…): go do that next.
+  const { stage } = ALL_FILES[index];
+  if (stage.panel && stage.files[stage.files.length - 1].path === ALL_FILES[index].file.path)
+    return { next: moduleUrl(code, stage.key) };
   const next = ALL_FILES[index + 1];
   return { next: next ? stepUrl(code, next.file) : `/episodes/${code}` };
 }
@@ -233,4 +238,35 @@ export async function generateVoiceSection(code: string, index: number): Promise
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Voice generation failed" };
   }
+}
+
+/* ---------- Final render ---------- */
+
+export async function startRenderAction(
+  code: string,
+  options: { resolution: "720p" | "1080p"; music: boolean; musicVolume: number },
+): Promise<{ error?: string }> {
+  try {
+    await startRender(code, {
+      resolution: options.resolution === "1080p" ? "1080p" : "720p",
+      music: !!options.music,
+      musicVolume: Number(options.musicVolume) || 0.18,
+    });
+    refresh();
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Could not start the render" };
+  }
+}
+
+export async function cancelRenderAction(code: string) {
+  cancelRender(code);
+  refresh();
+}
+
+export async function removeMusicBed(code: string) {
+  const ep = await episodeFor(code);
+  for (const ext of [".mp3", ".wav", ".m4a"])
+    await fs.rm(path.join(REPO_ROOT, ep.folder, "assets", "music", `bed${ext}`), { force: true });
+  refresh();
 }

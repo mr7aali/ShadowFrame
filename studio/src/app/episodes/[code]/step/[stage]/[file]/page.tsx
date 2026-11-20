@@ -6,7 +6,7 @@ import { BTN_PRIMARY, Card, Skeleton } from "@/components/ui";
 import { providerInfo } from "@/lib/ai/catalog";
 import { asChatPrompt, buildFilePrompt } from "@/lib/ai/prompt-builder";
 import { getAiPublic } from "@/lib/ai/settings";
-import { ALL_FILES, stepUrl } from "@/lib/pipeline";
+import { ALL_FILES, PIPELINE, stepUrl } from "@/lib/pipeline";
 import { getWorkspace, readEpisodeFile, type Workspace } from "@/lib/workspace";
 import { EpisodeHeader } from "../../../header";
 import { StepWorkspace } from "./workspace";
@@ -27,23 +27,23 @@ async function Step({ params }: { params: Params }) {
   const { code, stage: stageKey, file: slug } = await params;
   const ws = await getWorkspace(code);
   if (!ws) notFound();
-  const file = ws.files.find((f) => f.stageKey === stageKey && f.slug === slug);
+  const file = ws.files.find((f) => f.path === `${stageKey}/${slug}.md`);
   if (!file) notFound();
-  const stage = ws.stages.find((s) => s.key === stageKey)!;
+  const stage = ws.stages.find((s) => s.key === file.stageKey)!;
 
   const prev = ALL_FILES[file.index - 1];
   const next = ALL_FILES[file.index + 1];
 
   return (
     <>
-      <EpisodeHeader episode={ws.episode} active="step" />
+      <EpisodeHeader episode={ws.episode} active={stage.key} />
       <div className="grid gap-6 2xl:grid-cols-[250px_1fr]">
         <Stepper ws={ws} activePath={file.path} />
         <div className="min-w-0">
           <CompactStepper ws={ws} activePath={file.path} />
           <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-muted">
             <span className="rounded-full bg-panel-2 px-2 py-0.5 font-medium">
-              Stage {stage.number} · {stage.title}
+              Module {stage.number} · {stage.title}
             </span>
             <span>
               File {file.index + 1} of {ws.files.length}
@@ -81,7 +81,8 @@ async function Unlocked({
   prevUrl: string | null;
   nextUrl: string | null;
 }) {
-  const file = ws.files.find((f) => f.stageKey === stageKey && f.slug === slug)!;
+  const file = ws.files.find((f) => f.path === `${stageKey}/${slug}.md`)!;
+  const stage = ws.stages.find((s) => s.key === file.stageKey)!;
   const [content, built, ai] = await Promise.all([
     readEpisodeFile(ws.episode.folder, file.path),
     buildFilePrompt(ws.episode, stageKey, slug),
@@ -108,7 +109,8 @@ async function Unlocked({
       context={built.context}
       templates={built.templates}
       ai={route.provider ? { provider: providerInfo(route.provider)?.name ?? route.provider, model: route.model } : null}
-      media={file.media ?? null}
+      ask={file.ask ?? null}
+      module={{ key: stage.key, title: stage.title, panel: PIPELINE.find((p) => p.key === stage.key)?.panel ?? null, last: stage.files[stage.files.length - 1].path === file.path }}
       prevUrl={prevUrl}
       nextUrl={nextUrl}
     />

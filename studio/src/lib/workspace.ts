@@ -69,7 +69,7 @@ export async function getWorkspace(code: string): Promise<Workspace | null> {
   const files: WorkspaceFile[] = ALL_FILES.map(({ stage, file, index }) => {
     const repoPath = `${episode.folder}/${file.path}`;
     const status = (stepForFile(episode.steps, repoPath)?.status ?? "todo") as FileStatus;
-    const locked = blocked;
+    const locked = blocked && status !== "done";
     if (status !== "done") blocked = true;
     return { ...file, stageKey: stage.key, index, status, locked, words: countWords(contents[index]), repoPath };
   });

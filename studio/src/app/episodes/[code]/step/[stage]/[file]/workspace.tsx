@@ -12,6 +12,16 @@ import { completeStepFile, reopenStepFile, saveStepFile } from "@/lib/studio-act
 
 const ERROR_MARK = "\u0000ERROR:";
 
+const PANEL_VERB: Record<string, string> = {
+  voice: "generate or upload the narration audio",
+  cast: "generate and lock every face and location",
+  shots: "generate one image per shot",
+  motion: "add the animated clips",
+  music: "add the music bed",
+  render: "render the final video",
+  publish: "make the thumbnail and publish",
+};
+
 type Props = {
   code: string;
   stageKey: string;
@@ -25,7 +35,8 @@ type Props = {
   context: { path: string; chars: number; missing: boolean }[];
   templates: string[];
   ai: { provider: string; model: string } | null;
-  media: { kind: string; label: string; href: string } | null;
+  ask: { label: string; placeholder: string } | null;
+  module: { key: string; title: string; panel: string | null; last: boolean };
   prevUrl: string | null;
   nextUrl: string | null;
 };
@@ -197,18 +208,16 @@ export function StepWorkspace(p: Props) {
           </div>
         </Card>
 
-        {p.media && (
+        {p.module.panel && p.module.last && (
           <Card className="flex flex-wrap items-center justify-between gap-3 border-sky-200 bg-sky-50/60 p-4">
             <div className="text-sm">
-              <div className="font-medium text-sky-900">After this file: {p.media.label.toLowerCase()}</div>
+              <div className="font-medium text-sky-900">Next in {p.module.title}: make the media</div>
               <div className="text-sky-800/80">
-                Once complete, the prompts appear on the {p.media.href === "cast" ? "Cast & locations" : p.media.href === "voice" ? "Voice" : "Shot board"} tab,
-                with a Generate button when an AI is connected.
+                Once this file is complete, the {p.module.title} module uses it to {PANEL_VERB[p.module.panel] ?? "continue"}.
               </div>
             </div>
-            <Link href={`/episodes/${p.code}/${p.media.href}`} className={BTN}>
-              Open {p.media.href === "cast" ? "Cast & locations" : p.media.href === "voice" ? "Voice" : "Shot board"}{" "}
-              <IconArrowRight width={16} height={16} />
+            <Link href={`/episodes/${p.code}/m/${p.module.key}`} className={BTN}>
+              Open {p.module.title} <IconArrowRight width={16} height={16} />
             </Link>
           </Card>
         )}
@@ -257,6 +266,7 @@ function AiPanel({
   context,
   templates,
   ai,
+  ask,
   hasContent,
   onUse,
 }: Props & { hasContent: boolean; onUse: (text: string, mode: "replace" | "append") => void }) {
@@ -353,13 +363,13 @@ function AiPanel({
 
         <label className="block">
           <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted">
-            Extra instructions <span className="normal-case tracking-normal">(optional)</span>
+            {ask?.label ?? "Extra instructions"} <span className="normal-case tracking-normal">(optional)</span>
           </span>
           <textarea
             rows={3}
             value={extra}
             onChange={(e) => setExtra(e.target.value)}
-            placeholder="e.g. Set it in 1980s Louisiana. Make the twist about the sister."
+            placeholder={ask?.placeholder ?? "e.g. Set it in 1980s Louisiana. Make the twist about the sister."}
             className={`${INPUT} resize-y`}
           />
         </label>

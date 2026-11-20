@@ -2,12 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { ActionButton } from "@/components/client";
-import { IconArrowRight, IconCheck, IconLock } from "@/components/icons";
-import { BTN_PRIMARY, Card, docUrl, Progress, Skeleton, StatusPill } from "@/components/ui";
+import { IconArrowRight, IconCheck, IconFilm, IconLock } from "@/components/icons";
+import { BTN, BTN_PRIMARY, Card, docUrl, fileUrl, Progress, Skeleton } from "@/components/ui";
 import { reimportEpisode } from "@/lib/actions";
-import { stepUrl } from "@/lib/pipeline";
-import { getWorkspace, type WorkspaceFile } from "@/lib/workspace";
 import { getLibrary } from "@/lib/library-server";
+import { moduleUrl, stepUrl } from "@/lib/pipeline";
+import { getFinalVideo, getMediaStatus, withMedia, type MediaStatus } from "@/lib/production";
+import { getWorkspace, type WorkspaceStage } from "@/lib/workspace";
 import { EpisodeHeader } from "./header";
 import { LibraryCard } from "./library-card";
 
@@ -24,7 +25,8 @@ async function Overview({ params }: { params: PageProps<"/episodes/[code]">["par
   const [ws, library] = await Promise.all([getWorkspace(code), getLibrary()]);
   if (!ws) notFound();
   const { episode: ep, stages, current } = ws;
-  const total = ws.files.length;
+  const [media, final] = await Promise.all([getMediaStatus(code, ep.folder), getFinalVideo(code)]);
+  const currentStage = current ? stages.find((s) => s.key === current.stageKey) : null;
 
   const info = [
     ["Logline", ep.logline],
@@ -38,74 +40,69 @@ async function Overview({ params }: { params: PageProps<"/episodes/[code]">["par
     <>
       <EpisodeHeader episode={ep} active="overview" />
 
-      {current ? (
-        <Card className="mb-6 flex flex-wrap items-center justify-between gap-4 border-accent/30 bg-linear-to-r from-accent-soft to-white p-5">
-          <div>
-            <div className="text-xs font-medium uppercase tracking-wider text-accent">
-              Up next · Stage {stages.find((s) => s.key === current.stageKey)?.number} of 10
+      <div className="mb-6 grid gap-6 xl:grid-cols-[1fr_320px]">
+        {/* The goal: a finished video */}
+        <Card className="overflow-hidden">
+          {final ? (
+            <div className="grid md:grid-cols-[1.4fr_1fr]">
+              <video controls className="aspect-video w-full bg-black" src={fileUrl(final.output, final.updatedAt)} />
+              <div className="flex flex-col justify-center gap-2 p-5">
+                <div className="text-xs font-medium uppercase tracking-wider text-emerald-600">Latest render</div>
+                <div className="font-semibold">{final.output.split("/").pop()}</div>
+                <div className="text-sm text-muted">
+                  {final.options.resolution} · {Math.floor(final.seconds / 60)}:{String(Math.round(final.seconds % 60)).padStart(2, "0")}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <a href={`${fileUrl(final.output)}?download`} className={BTN_PRIMARY}>
+                    Download
+                  </a>
+                  <Link href={moduleUrl(code, "render")} className={BTN}>
+                    Re-render
+                  </Link>
+                </div>
+              </div>
             </div>
-            <div className="mt-1 text-lg font-semibold">{current.title}</div>
-            <div className="text-sm text-muted">{current.summary}</div>
-          </div>
-          <Link href={stepUrl(ep.code, current)} className={`${BTN_PRIMARY} px-4! py-2!`}>
-            {current.words ? "Continue" : "Start"} {current.title} <IconArrowRight width={16} height={16} />
-          </Link>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-4 bg-linear-to-r from-accent-soft to-white p-6">
+              <div className="flex items-start gap-4">
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-accent text-white">
+                  <IconFilm width={22} height={22} />
+                </span>
+                <div>
+                  <div className="text-xs font-medium uppercase tracking-wider text-accent">
+                    {current ? `Up next · Module ${currentStage?.number} · ${currentStage?.title}` : "Ready to render"}
+                  </div>
+                  <div className="mt-0.5 text-lg font-semibold">{current ? current.title : "Every document is complete"}</div>
+                  <div className="text-sm text-muted">{current ? current.summary : "Render the final video in Edit & render."}</div>
+                </div>
+              </div>
+              <Link href={current ? stepUrl(code, current) : moduleUrl(code, "render")} className={`${BTN_PRIMARY} px-4! py-2!`}>
+                {current ? (current.words ? "Continue" : "Start") : "Render video"} <IconArrowRight width={16} height={16} />
+              </Link>
+            </div>
+          )}
         </Card>
-      ) : (
-        <Card className="mb-6 border-emerald-200 bg-emerald-50 p-5">
-          <div className="font-semibold text-emerald-800">All 16 files are complete 🎬</div>
-          <div className="text-sm text-emerald-700">Finish the media on the Cast, Shot board and Voice tabs, then edit and publish.</div>
+        <Card className="space-y-3 p-4">
+          <Progress value={ws.done} total={ws.files.length} label="Documents" />
+          <Progress
+            value={Object.values(media).filter((m) => m.total && m.done === m.total).length}
+            total={Object.values(media).length}
+            label="Media steps complete"
+          />
         </Card>
-      )}
+      </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
-        <section className="space-y-3">
-          {stages.map((stage) => (
-            <Card key={stage.key} className={`overflow-hidden ${stage.status === "locked" ? "opacity-70" : ""}`}>
-              <div className="flex flex-wrap items-center gap-3 border-b border-line px-5 py-3">
-                <span
-                  className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm font-semibold ${
-                    stage.status === "done"
-                      ? "bg-emerald-500 text-white"
-                      : stage.status === "locked"
-                        ? "bg-slate-100 text-slate-400"
-                        : "bg-accent text-white"
-                  }`}
-                >
-                  {stage.status === "done" ? <IconCheck width={16} height={16} /> : stage.number}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h2 className="font-semibold">{stage.title}</h2>
-                    <span className="font-mono text-xs text-slate-400">{stage.key}/</span>
-                  </div>
-                  <p className="text-xs text-muted">{stage.description}</p>
-                </div>
-                <span className="text-xs text-muted tabular-nums">
-                  {stage.done}/{stage.files.length}
-                </span>
-                <StatusPill status={stage.status} />
-              </div>
-              {stage.status === "locked" ? (
-                <p className="flex items-center gap-2 px-5 py-2.5 text-xs text-slate-400">
-                  <IconLock width={12} height={12} />
-                  {stage.files.map((f) => f.title).join(" · ")}
-                </p>
-              ) : (
-                <ul className="divide-y divide-line">
-                  {stage.files.map((f) => (
-                    <FileRow key={f.path} code={ep.code} file={f} />
-                  ))}
-                </ul>
-              )}
-            </Card>
-          ))}
+        <section>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted">Production · idea to video</h2>
+          <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+            {withMedia(stages, media).map((s) => (
+              <ModuleCard key={s.key} code={code} stage={s} media={media[s.key]} isCurrent={s.key === currentStage?.key} />
+            ))}
+          </div>
         </section>
 
         <aside className="space-y-4">
-          <Card className="p-4">
-            <Progress value={ws.done} total={total} label="Files complete" />
-          </Card>
           <LibraryCard
             code={ep.code}
             library={library}
@@ -131,9 +128,7 @@ async function Overview({ params }: { params: PageProps<"/episodes/[code]">["par
             <ActionButton action={reimportEpisode.bind(null, ep.folder)} pendingText="Re-importing…">
               Re-import {ep.folder}
             </ActionButton>
-            <p className="text-xs text-muted">
-              Edited a file outside the studio? Re-import to refresh the shot board and cast.
-            </p>
+            <p className="text-xs text-muted">Edited a file outside the studio? Re-import to refresh shots and cast.</p>
           </Card>
         </aside>
       </div>
@@ -141,42 +136,67 @@ async function Overview({ params }: { params: PageProps<"/episodes/[code]">["par
   );
 }
 
-function FileRow({ code, file }: { code: string; file: WorkspaceFile }) {
+function ModuleCard({
+  code,
+  stage: s,
+  media,
+  isCurrent,
+}: {
+  code: string;
+  stage: WorkspaceStage;
+  media?: MediaStatus;
+  isCurrent: boolean;
+}) {
+  const locked = s.status === "locked";
   const body = (
-    <div className="flex items-center gap-3 px-5 py-3">
-      <span
-        className={`grid h-6 w-6 shrink-0 place-items-center rounded-full ${
-          file.status === "done"
-            ? "bg-emerald-50 text-emerald-600"
-            : file.locked
-              ? "bg-slate-50 text-slate-300"
-              : "bg-accent-soft text-accent"
-        }`}
-      >
-        {file.status === "done" ? (
-          <IconCheck width={14} height={14} />
-        ) : file.locked ? (
-          <IconLock width={13} height={13} />
-        ) : (
-          <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-        )}
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="font-medium">{file.title}</div>
-        <div className="truncate text-xs text-muted">
-          <span className="font-mono">{file.path.split("/")[1]}</span> · {file.summary}
+    <Card
+      className={`flex h-full flex-col p-4 transition ${locked ? "opacity-60" : "group-hover:border-accent/50 group-hover:shadow-md"} ${
+        isCurrent ? "ring-2 ring-accent/40" : ""
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <span
+          className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg text-sm font-semibold ${
+            s.status === "done" ? "bg-emerald-500 text-white" : locked ? "bg-slate-100 text-slate-400" : "bg-accent text-white"
+          }`}
+        >
+          {s.status === "done" ? <IconCheck width={16} height={16} /> : locked ? <IconLock width={14} height={14} /> : s.number}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold group-hover:text-accent">{s.title}</span>
+            {isCurrent && <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-medium text-white">Now</span>}
+          </div>
+          <p className="text-xs text-muted">{s.description}</p>
         </div>
       </div>
-      {file.words > 0 && <span className="hidden text-xs text-muted tabular-nums sm:inline">{file.words.toLocaleString()} words</span>}
-      <StatusPill status={file.locked ? "locked" : file.status} />
-    </div>
+      <div className="mt-4 space-y-2 text-xs">
+        <Bar label="Documents" done={s.done} total={s.files.length} />
+        {media && <Bar label={media.label[0].toUpperCase() + media.label.slice(1)} done={media.done} total={media.total} />}
+      </div>
+    </Card>
   );
-  if (file.locked) return <li className="cursor-not-allowed">{body}</li>;
+  return locked ? (
+    <div>{body}</div>
+  ) : (
+    <Link href={moduleUrl(code, s.key)} className="group">
+      {body}
+    </Link>
+  );
+}
+
+function Bar({ label, done, total }: { label: string; done: number; total: number }) {
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  const full = total > 0 && done === total;
   return (
-    <li>
-      <Link href={stepUrl(code, file)} className="block transition hover:bg-panel-2/50">
-        {body}
-      </Link>
-    </li>
+    <div>
+      <div className="mb-1 flex justify-between text-muted">
+        <span>{label}</span>
+        <span className="tabular-nums">{total ? `${done}/${total}` : "—"}</span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-panel-2">
+        <div className={`h-full rounded-full ${full ? "bg-emerald-500" : "bg-accent"}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
   );
 }

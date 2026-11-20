@@ -177,6 +177,28 @@ const AssetSchema = new Schema(
   { timestamps: true },
 );
 
+/* ---------- Final video renders ---------- */
+
+const RenderJobSchema = new Schema(
+  {
+    episode: { type: String, required: true, index: true },
+    status: { type: String, enum: ["running", "done", "error", "canceled"], default: "running" },
+    step: { type: String, default: "" }, // human-readable current step
+    progress: { type: Number, default: 0 }, // 0–100
+    log: { type: String, default: "" }, // last lines, for errors
+    output: { type: String, default: "" }, // repo-relative mp4
+    captions: { type: String, default: "" }, // repo-relative srt
+    seconds: { type: Number, default: 0 }, // final duration
+    options: {
+      resolution: { type: String, default: "720p" },
+      music: { type: Boolean, default: true },
+      musicVolume: { type: Number, default: 0.18 },
+    },
+    finishedAt: { type: Date, default: null },
+  },
+  { timestamps: true },
+);
+
 /* ---------- Exports ---------- */
 
 function model<T extends Schema>(name: string, schema: T) {
@@ -193,6 +215,7 @@ export const PromptRun = model("PromptRun", PromptRunSchema);
 export const AiSettings = model("AiSettings", AiSettingsSchema);
 export const LibraryItem = model("LibraryItem", LibraryItemSchema);
 export const Asset = model("Asset", AssetSchema);
+export const RenderJob = model("RenderJob", RenderJobSchema);
 
 export type EpisodeDoc = InferSchemaType<typeof EpisodeSchema>;
 export type StepDoc = InferSchemaType<typeof StepSchema>;

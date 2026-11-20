@@ -9,7 +9,7 @@ type Shot = ShotView & { updatedAt?: string };
 
 const STATUSES = ["all", "todo", "generated", "approved", "rejected"] as const;
 
-export function ShotBoard({ shots, canGenerate }: { shots: Shot[]; canGenerate: boolean }) {
+export function ShotBoard({ shots, canGenerate, motion = false }: { shots: Shot[]; canGenerate: boolean; motion?: boolean }) {
   const sections = useMemo(() => [...new Set(shots.map((s) => s.section).filter(Boolean))], [shots]);
   const [section, setSection] = useState("all");
   const [status, setStatus] = useState<(typeof STATUSES)[number]>("all");
@@ -74,7 +74,7 @@ export function ShotBoard({ shots, canGenerate }: { shots: Shot[]; canGenerate: 
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {visible.map((s) => (
-          <ShotCard key={s._id} shot={s} canGenerate={canGenerate} />
+          <ShotCard key={s._id} shot={s} canGenerate={canGenerate && !motion} motion={motion} />
         ))}
       </div>
       {!visible.length && <p className="text-sm text-muted">No shots match these filters.</p>}
@@ -82,7 +82,7 @@ export function ShotBoard({ shots, canGenerate }: { shots: Shot[]; canGenerate: 
   );
 }
 
-function ShotCard({ shot: s, canGenerate }: { shot: Shot; canGenerate: boolean }) {
+function ShotCard({ shot: s, canGenerate, motion }: { shot: Shot; canGenerate: boolean; motion: boolean }) {
   return (
     <article className="flex flex-col overflow-hidden rounded-xl border border-line bg-panel shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
       <div className="relative aspect-video bg-panel-2">
@@ -125,7 +125,7 @@ function ShotCard({ shot: s, canGenerate }: { shot: Shot; canGenerate: boolean }
           </div>
         )}
 
-        <PromptBox label="Image prompt" text={s.imagePrompt} />
+        {!motion && <PromptBox label="Image prompt" text={s.imagePrompt} />}
         {s.videoPrompt && <PromptBox label="Video prompt (5s, image-to-video)" text={s.videoPrompt} />}
 
         {s.video && (

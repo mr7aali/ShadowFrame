@@ -24,6 +24,19 @@ export async function POST(req: Request) {
 
   const ext = path.extname(file.name).toLowerCase();
 
+  // Music bed for the final mix: saved as assets/music/bed.(mp3|wav|m4a), replacing the old one
+  if (kind === "music") {
+    if (![".mp3", ".wav", ".m4a"].includes(ext)) return Response.json({ error: "Use .mp3, .wav or .m4a" }, { status: 400 });
+    await connectDB();
+    const episode = await Episode.findOne({ code: String(form.get("code")) }, { folder: 1 }).lean();
+    if (!episode) return Response.json({ error: "Episode not found" }, { status: 404 });
+    const dir = path.join(REPO_ROOT, episode.folder, "assets", "music");
+    await fs.mkdir(dir, { recursive: true });
+    for (const old of [".mp3", ".wav", ".m4a"]) await fs.rm(path.join(dir, `bed${old}`), { force: true });
+    await fs.writeFile(path.join(dir, `bed${ext}`), Buffer.from(await file.arrayBuffer()));
+    return Response.json({ path: `${episode.folder}/assets/music/bed${ext}` });
+  }
+
   // Narration recorded elsewhere: saved as assets/voice/vo_01_hook.mp3
   if (kind === "voice") {
     const name = String(form.get("name"));
