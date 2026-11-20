@@ -4,6 +4,10 @@ Original English-language fictional crime-thriller videos: **14-minute narrated 
 
 > Tool names are examples, not endorsements. Check current pricing, commercial-use terms, and YouTube policies before committing.
 
+## Studio app
+
+[studio/](studio/README.md) is a local Next.js + MongoDB app that sits on top of this repo. It tracks each episode's pipeline, fills and copies prompts, and holds a shot board for uploading and approving images. Run `npm run db`, `npm run seed` and `npm run dev` inside `studio/`.
+
 ## Guides — what to do (checklists)
 
 | # | Guide | Covers |
