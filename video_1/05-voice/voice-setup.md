@@ -83,13 +83,15 @@ Note: some voice tools read bracket tags out loud. If yours does, use its own sy
 
 ## 6. Output files
 
-Save to `06-voice/`:
+**Ready-to-paste ElevenLabs narration for all six sections:** [narration-elevenlabs.md](narration-elevenlabs.md)
+
+Save to `video_1/assets/voice/` (or upload in the studio: EP001 → Voice):
 ```text
 vo_01_hook.mp3
 vo_02_setup.mp3
 vo_03_investigation.mp3
 vo_04_complication.mp3
-vo_05_climax.mp3
+vo_05_climax-and-reveal.mp3
 vo_06_ending.mp3
 ```
 
