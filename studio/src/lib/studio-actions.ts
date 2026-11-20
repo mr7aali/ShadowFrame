@@ -14,7 +14,7 @@ import {
 } from "./ai/settings";
 import { connectDB } from "./db";
 import { importEpisodeFolder } from "./importer";
-import { Character, Episode, Location, Shot } from "./models";
+import { Character, Episode, LibraryItem, Location, Shot } from "./models";
 import { ALL_FILES, findFile, stepUrl } from "./pipeline";
 import { REPO_ROOT } from "./paths";
 import { splitScript } from "./voice-sections";
@@ -129,6 +129,16 @@ async function findReference(folder: string, name: string): Promise<string | nul
   const dir = path.join(REPO_ROOT, folder, "assets", "references");
   for (const ext of IMAGE_EXT) {
     const p = path.join(dir, `${name}${ext}`);
+    try {
+      await fs.access(p);
+      return p;
+    } catch {}
+  }
+  // Fall back to the series library: "mara_front" → library character "mara"'s main image.
+  const slug = name.replace(/_front$/, "");
+  const lib = await LibraryItem.findOne({ type: "character", slug, image: { $ne: "" } }, { image: 1 }).lean();
+  if (lib?.image) {
+    const p = path.join(REPO_ROOT, lib.image);
     try {
       await fs.access(p);
       return p;

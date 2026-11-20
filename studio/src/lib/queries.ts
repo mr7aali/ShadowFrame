@@ -31,6 +31,9 @@ export type EpisodeView = {
   cast: string;
   steps: Step[];
   updatedAt: string;
+  libraryStory?: string;
+  libraryCast?: string[];
+  libraryLocations?: string[];
 };
 
 export type AssetStatus = "todo" | "generated" | "approved" | "rejected";

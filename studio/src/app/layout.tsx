@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { Suspense } from "react";
-import { IconBook, IconHome, IconPlug, IconPlus, IconTerminal } from "@/components/icons";
+import { IconBook, IconHome, IconImage, IconLayers, IconPlug, IconPlus, IconTerminal, IconUsers } from "@/components/icons";
 import { NavLink } from "@/components/nav";
 import { getAiPublic } from "@/lib/ai/settings";
 import { getEpisodeCodes } from "@/lib/queries";
@@ -15,6 +15,13 @@ export const metadata: Metadata = {
   title: { default: "Case Studio", template: "%s · Case Studio" },
   description: "AI video production studio for the crime-thriller channel",
 };
+
+const LIBRARY_NAV = [
+  { href: "/library/characters", label: "Characters", icon: <IconUsers /> },
+  { href: "/library/stories", label: "Stories", icon: <IconBook /> },
+  { href: "/library/locations", label: "Locations", icon: <IconLayers /> },
+  { href: "/library/assets", label: "Asset gallery", icon: <IconImage /> },
+];
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: <IconHome />, exact: true },
@@ -53,6 +60,18 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 ))}
               </div>
               <div>
+                <div className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                  Library
+                </div>
+                <div className="space-y-0.5">
+                  {LIBRARY_NAV.map((n) => (
+                    <NavLink key={n.href} href={n.href} icon={n.icon}>
+                      {n.label}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+              <div>
                 <div className="mb-1.5 flex items-center justify-between px-3">
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                     Episodes
@@ -80,7 +99,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 <Logo />
               </div>
               <nav className="flex gap-1 overflow-x-auto px-3 pb-2">
-                {NAV.map((n) => (
+                {[...NAV, ...LIBRARY_NAV].map((n: { href: string; label: string; exact?: boolean; match?: string }) => (
                   <NavLink key={n.href} href={n.href} exact={n.exact} match={n.match}>
                     {n.label}
                   </NavLink>

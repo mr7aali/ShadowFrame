@@ -9,6 +9,7 @@ import {
   setStepStatus,
   type AssetKind,
 } from "@/lib/actions";
+import { applyLibraryFace } from "@/lib/library-actions";
 import { generateAssetImage } from "@/lib/studio-actions";
 import { BTN, STATUS_LABELS, STATUS_STYLES } from "./ui";
 
@@ -312,6 +313,33 @@ export function GenerateImageButton({
         className={`${BTN} border-accent/30! px-2.5! py-1! text-xs! text-accent!`}
       >
         {pending ? "Generating…" : again ? "✦ Regenerate" : "✦ Generate image"}
+      </button>
+      {error && <span className="text-xs text-rose-600">{error}</span>}
+    </span>
+  );
+}
+
+/* ---------- Use the library character's face as this episode's locked reference ---------- */
+
+export function UseLibraryFaceButton({ id }: { id: string }) {
+  const [pending, start] = useTransition();
+  const [error, setError] = useState("");
+  return (
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() =>
+          start(async () => {
+            setError("");
+            const r = await applyLibraryFace(id);
+            if (r.error) setError(r.error);
+          })
+        }
+        className={`${BTN} px-2.5! py-1! text-xs!`}
+        title="Copy the library character's main image in as this episode's locked reference"
+      >
+        {pending ? "Copying…" : "Use library face"}
       </button>
       {error && <span className="text-xs text-rose-600">{error}</span>}
     </span>

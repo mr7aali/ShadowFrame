@@ -1,3 +1,6 @@
 # Generated media (too large for git)
 video_*/assets/
 video_*/export/
+
+# Series library images (studio)
+library/assets/

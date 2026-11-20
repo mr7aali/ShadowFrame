@@ -14,12 +14,12 @@ const TYPES: Record<string, string> = {
   ".wav": "audio/wav",
 };
 
-/** Serves generated media from video_N/assets/ only. */
+/** Serves generated media from video_N/assets/ and library/assets/ only. */
 export async function GET(_req: Request, ctx: RouteContext<"/api/files/[...path]">) {
   const { path: parts } = await ctx.params;
   const rel = parts.map(decodeURIComponent).join("/");
   const type = TYPES[path.extname(rel).toLowerCase()];
-  const abs = /^video_\d+\/assets\//.test(rel) ? safeRepoPath(rel) : null;
+  const abs = /^(video_\d+|library)\/assets\//.test(rel) ? safeRepoPath(rel) : null;
   if (!abs || !type) return new Response("Not found", { status: 404 });
   try {
     const data = await fs.readFile(abs);

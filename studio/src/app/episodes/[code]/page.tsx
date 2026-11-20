@@ -7,7 +7,9 @@ import { BTN_PRIMARY, Card, docUrl, Progress, Skeleton, StatusPill } from "@/com
 import { reimportEpisode } from "@/lib/actions";
 import { stepUrl } from "@/lib/pipeline";
 import { getWorkspace, type WorkspaceFile } from "@/lib/workspace";
+import { getLibrary } from "@/lib/library-server";
 import { EpisodeHeader } from "./header";
+import { LibraryCard } from "./library-card";
 
 export default function EpisodePage({ params }: PageProps<"/episodes/[code]">) {
   return (
@@ -19,7 +21,7 @@ export default function EpisodePage({ params }: PageProps<"/episodes/[code]">) {
 
 async function Overview({ params }: { params: PageProps<"/episodes/[code]">["params"] }) {
   const { code } = await params;
-  const ws = await getWorkspace(code);
+  const [ws, library] = await Promise.all([getWorkspace(code), getLibrary()]);
   if (!ws) notFound();
   const { episode: ep, stages, current } = ws;
   const total = ws.files.length;
@@ -104,6 +106,13 @@ async function Overview({ params }: { params: PageProps<"/episodes/[code]">["par
           <Card className="p-4">
             <Progress value={ws.done} total={total} label="Files complete" />
           </Card>
+          <LibraryCard
+            code={ep.code}
+            library={library}
+            story={ep.libraryStory ?? ""}
+            cast={ep.libraryCast ?? []}
+            locations={ep.libraryLocations ?? []}
+          />
           {info.length > 0 && (
             <Card className="space-y-3 p-4 text-sm">
               {info.map(([k, v]) => (

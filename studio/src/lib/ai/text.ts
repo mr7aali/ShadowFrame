@@ -8,6 +8,8 @@ export type TextRequest = {
   system: string;
   prompt: string;
   signal?: AbortSignal;
+  /** Short task (prompt enhancement, filling fields): less thinking, smaller output. */
+  quick?: boolean;
 };
 
 /** Streams generated text from whichever provider is routed to "Script & text". */
@@ -33,16 +35,16 @@ const FALLBACK_MODELS = /^claude-(fable-5-[12]|opus-5(-5)?|sonnet-5-5)$/;
 // Models that accept output_config.effort.
 const EFFORT_MODELS = /^claude-(fable|mythos|opus-5|sonnet-5|haiku-5|opus-4-[678]|sonnet-4-6)/;
 
-async function* streamAnthropic({ creds, model, system, prompt, signal }: TextRequest) {
+async function* streamAnthropic({ creds, model, system, prompt, signal, quick }: TextRequest) {
   const client = new Anthropic({ apiKey: creds.apiKey });
   const stream = client.beta.messages.stream(
     {
       model,
-      max_tokens: 64000,
+      max_tokens: quick ? 8000 : 64000,
       system,
       messages: [{ role: "user", content: prompt }],
       // Long-form creative writing benefits from more thinking than the default.
-      ...(EFFORT_MODELS.test(model) ? { output_config: { effort: "high" as const } } : {}),
+      ...(EFFORT_MODELS.test(model) ? { output_config: { effort: quick ? ("low" as const) : ("high" as const) } } : {}),
       // If a request is declined by a safety classifier, retry on a fallback model
       // automatically (crime fiction occasionally trips one).
       ...(FALLBACK_MODELS.test(model)
@@ -59,6 +61,13 @@ async function* streamAnthropic({ creds, model, system, prompt, signal }: TextRe
   if (final.stop_reason === "refusal")
     throw new Error("Claude declined this request. Rephrase the extra instructions and try again.");
   if (final.stop_reason === "max_tokens") yield "\n\n<!-- Output stopped at the length limit. -->";
+}
+
+/** Whole response as one string (for short tasks). */
+export async function generateText(req: TextRequest): Promise<string> {
+  let out = "";
+  for await (const chunk of streamText(req)) out += chunk;
+  return out.trim();
 }
 
 /* ---------- OpenAI-compatible: OpenAI, OpenRouter, Ollama ---------- */

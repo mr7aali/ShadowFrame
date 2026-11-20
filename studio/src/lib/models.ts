@@ -32,6 +32,10 @@ const EpisodeSchema = new Schema(
     cast: { type: String, default: "" },
     releaseDate: { type: Date, default: null },
     steps: { type: [StepSchema], default: [] },
+    // Picked from the series library when the episode was created (LibraryItem ids)
+    libraryStory: { type: String, default: "" },
+    libraryCast: { type: [String], default: [] },
+    libraryLocations: { type: [String], default: [] },
   },
   { timestamps: true },
 );
@@ -144,9 +148,40 @@ const AiSettingsSchema = new Schema(
   { timestamps: true },
 );
 
+/* ---------- Series library: characters, stories, locations reused across episodes ---------- */
+
+const LibraryItemSchema = new Schema(
+  {
+    type: { type: String, enum: ["character", "story", "location"], required: true, index: true },
+    name: { type: String, required: true },
+    slug: { type: String, required: true }, // character: first name ("mara") — matches shot refs like mara_front
+    fields: { type: Map, of: String, default: {} },
+    image: { type: String, default: "" }, // repo-relative path of the main image
+  },
+  { timestamps: true },
+);
+
+/* ---------- Image assets (library items and episodes) ---------- */
+
+const AssetSchema = new Schema(
+  {
+    episode: { type: String, default: "", index: true }, // episode code, "" for library assets
+    item: { type: String, default: "", index: true }, // LibraryItem id, "" if none
+    kind: { type: String, default: "other" }, // character, location, story, shot, thumbnail, other
+    title: { type: String, default: "" },
+    prompt: { type: String, default: "" }, // the prompt the image was made from
+    path: { type: String, required: true }, // repo-relative
+    source: { type: String, enum: ["generated", "uploaded"], default: "generated" },
+    model: { type: String, default: "" },
+  },
+  { timestamps: true },
+);
+
 /* ---------- Exports ---------- */
 
 function model<T extends Schema>(name: string, schema: T) {
+  // In dev, hot reload re-runs this file: replace the cached model so schema changes apply without a restart.
+  if (process.env.NODE_ENV !== "production" && mongoose.models[name]) mongoose.deleteModel(name);
   return (mongoose.models[name] as Model<InferSchemaType<T>>) ?? mongoose.model(name, schema);
 }
 
@@ -156,6 +191,8 @@ export const Location = model("Location", LocationSchema);
 export const Shot = model("Shot", ShotSchema);
 export const PromptRun = model("PromptRun", PromptRunSchema);
 export const AiSettings = model("AiSettings", AiSettingsSchema);
+export const LibraryItem = model("LibraryItem", LibraryItemSchema);
+export const Asset = model("Asset", AssetSchema);
 
 export type EpisodeDoc = InferSchemaType<typeof EpisodeSchema>;
 export type StepDoc = InferSchemaType<typeof StepSchema>;

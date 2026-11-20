@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { AssetNotes, AssetStatusControl, CopyButton, GenerateImageButton, UploadButton } from "@/components/client";
+import { AssetNotes, AssetStatusControl, CopyButton, GenerateImageButton, UploadButton, UseLibraryFaceButton } from "@/components/client";
 import { Card, fileUrl, Skeleton } from "@/components/ui";
 import { getAiPublic } from "@/lib/ai/settings";
+import { getLibrary } from "@/lib/library-server";
 import { getCharacters, getEpisode, getLocations, type AssetStatus } from "@/lib/queries";
 import { EpisodeHeader } from "../header";
 
@@ -24,6 +25,7 @@ async function Cast({ params }: { params: PageProps<"/episodes/[code]/cast">["pa
     getLocations(code),
     getAiPublic(),
   ]);
+  const libraryFaces = new Set((await getLibrary("character")).filter((c) => c.image).map((c) => c.slug));
   const canGenerate = !!ai.routing.image.provider;
   if (!ep) notFound();
 
@@ -53,6 +55,7 @@ async function Cast({ params }: { params: PageProps<"/episodes/[code]/cast">["pa
             prompts={c.prompts}
             version={c.updatedAt}
             canGenerate={canGenerate}
+            libraryFace={libraryFaces.has(c.slug)}
           />
         ))}
         {!characters.length && <Empty file={`${ep.folder}/02-characters/character-image-prompts.md`} />}
@@ -102,6 +105,7 @@ function RefCard(props: {
   prompts: { label: string; text: string }[];
   version?: string;
   canGenerate: boolean;
+  libraryFace?: boolean;
 }) {
   return (
     <Card className="flex flex-col overflow-hidden sm:flex-row">
@@ -132,6 +136,7 @@ function RefCard(props: {
         <div className="mt-auto space-y-2 border-t border-line pt-3">
           <AssetStatusControl kind={props.kind} id={props.id} status={props.status} />
           <div className="flex flex-wrap gap-2">
+            {props.libraryFace && <UseLibraryFaceButton id={props.id} />}
             {props.canGenerate && props.prompts.length > 0 && (
               <GenerateImageButton kind={props.kind} id={props.id} again={!!props.image} />
             )}

@@ -6,6 +6,7 @@ const TABS = [
   { key: "cast", label: "Cast & locations", href: "/cast" },
   { key: "shots", label: "Shot board", href: "/shots" },
   { key: "voice", label: "Voice", href: "/voice" },
+  { key: "assets", label: "Assets", href: "/assets" },
 ] as const;
 
 export function EpisodeHeader({

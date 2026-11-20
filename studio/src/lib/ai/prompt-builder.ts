@@ -1,5 +1,7 @@
 import "server-only";
 import fs from "node:fs/promises";
+import { describeItem } from "../library";
+import { getLibraryItems } from "../library-server";
 import { extractCodeBlocks } from "../markdown";
 import { findFile } from "../pipeline";
 import { safeRepoPath } from "../paths";
@@ -93,6 +95,21 @@ export async function buildFilePrompt(
   ].filter(Boolean);
   sections.push(`# Episode\n${facts.join("\n")}`);
 
+  // Story, cast and locations the creator picked from the series library
+  const [story] = episode.libraryStory ? await getLibraryItems([episode.libraryStory]) : [];
+  const cast = await getLibraryItems(episode.libraryCast ?? []);
+  const places = await getLibraryItems(episode.libraryLocations ?? []);
+  if (story || cast.length || places.length) {
+    const lib: string[] = ["# Chosen by the creator from the series library"];
+    if (story) lib.push(`## Story — build the episode on this premise\n${describeItem(story)}`);
+    if (cast.length)
+      lib.push(
+        `## Cast — use these characters with exactly these names and descriptions (you may add minor characters the story needs)\n${cast.map(describeItem).join("\n\n")}`,
+      );
+    if (places.length) lib.push(`## Locations — use these places where they fit\n${places.map(describeItem).join("\n\n")}`);
+    sections.push(lib.join("\n\n"));
+  }
+
   // Task
   sections.push(`# Your task: write \`${target}\` — ${file.title}\n${file.task}`);
 
@@ -118,7 +135,7 @@ export async function buildFilePrompt(
     context.push({ path: p, chars: text.length, missing: !text.trim() });
     if (text.trim()) ctxBlocks.push(`<file path="${p}">\n${text.trim()}\n</file>`);
   }
-  if (file.seriesBible) {
+  if (file.seriesBible && !cast.length) {
     const bible = await seriesBible(episode.folder);
     if (bible) {
       context.push({ path: bible.path, chars: bible.text.length, missing: false });

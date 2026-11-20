@@ -158,5 +158,17 @@ export async function createEpisode(_prev: { error?: string } | undefined, form:
     return { error: `${folder}/README.md already exists.` };
   }
   await importEpisodeFolder(folder);
+  const ids = (k: string) => form.getAll(k).map(String).filter((x) => /^[a-f0-9]{24}$/.test(x));
+  const story = String(form.get("story") ?? "");
+  await Episode.updateOne(
+    { code },
+    {
+      $set: {
+        libraryStory: /^[a-f0-9]{24}$/.test(story) ? story : "",
+        libraryCast: ids("cast"),
+        libraryLocations: ids("locations"),
+      },
+    },
+  );
   redirect(`/episodes/${code}/step/01-story/01-idea`);
 }
